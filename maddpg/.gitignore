@@ -107,3 +107,4 @@ venv.bak/
 # experiments
 learning_curves/
 policy/
+weight*/

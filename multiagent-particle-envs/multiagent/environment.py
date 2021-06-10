@@ -197,7 +197,7 @@ class MultiAgentEnv(gym.Env):
         self.render_geoms_xform = None
 
     # render environment
-    def render(self, mode='human'):
+    def render(self, mode=''):
         if mode == 'human':
             alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
             message = ''
@@ -257,6 +257,7 @@ class MultiAgentEnv(gym.Env):
             # update geometry positions
             for e, entity in enumerate(self.world.entities):
                 self.render_geoms_xform[e].set_translation(*entity.state.p_pos)
+                print("entity_{} pos: {}".format(e, entity.state.p_pos))
             # render to display or array
             results.append(self.viewers[i].render(return_rgb_array = mode=='rgb_array'))
 

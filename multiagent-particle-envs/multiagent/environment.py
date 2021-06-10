@@ -103,9 +103,9 @@ class MultiAgentEnv(gym.Env):
 
         return obs_n, reward_n, done_n, info_n
 
-    def reset(self):
+    def reset(self, agent_states, landmark_states):
         # reset world
-        self.reset_callback(self.world)
+        self.reset_callback(self.world, agent_states, landmark_states)
         # reset renderer
         self._reset_render()
         # record observations for each agent
@@ -197,7 +197,7 @@ class MultiAgentEnv(gym.Env):
         self.render_geoms_xform = None
 
     # render environment
-    def render(self, mode=''):
+    def render(self, entities, mode=''):
         if mode == 'human':
             alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
             message = ''
@@ -227,7 +227,7 @@ class MultiAgentEnv(gym.Env):
             from multiagent import rendering
             self.render_geoms = []
             self.render_geoms_xform = []
-            for entity in self.world.entities:
+            for entity in entities:
                 geom = rendering.make_circle(entity.size)
                 xform = rendering.Transform()
                 if 'agent' in entity.name:
@@ -248,14 +248,14 @@ class MultiAgentEnv(gym.Env):
         for i in range(len(self.viewers)):
             from multiagent import rendering
             # update bounds to center around agent
-            cam_range = 1
+            cam_range = 2
             if self.shared_viewer:
                 pos = np.zeros(self.world.dim_p)
             else:
                 pos = self.agents[i].state.p_pos
             self.viewers[i].set_bounds(pos[0]-cam_range,pos[0]+cam_range,pos[1]-cam_range,pos[1]+cam_range)
             # update geometry positions
-            for e, entity in enumerate(self.world.entities):
+            for e, entity in enumerate(entities):
                 self.render_geoms_xform[e].set_translation(*entity.state.p_pos)
                 print("entity_{} pos: {}".format(e, entity.state.p_pos))
             # render to display or array

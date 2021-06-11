@@ -19,7 +19,7 @@ def parse_args():
     parser.add_argument("--max-episode-len", type=int, default=25, help="maximum episode length")
     parser.add_argument("--num-episodes", type=int, default=300000, help="number of episodes")
     parser.add_argument("--num-adversaries", type=int, default=0, help="number of adversaries")
-    parser.add_argument("--group-dim", type=int, default=1, help="number of group")
+    parser.add_argument("--group-dim", type=int, default=4, help="number of group")
     parser.add_argument("--good-policy", type=str, default="maddpg", help="policy for good agents")
     parser.add_argument("--adv-policy", type=str, default="maddpg", help="policy of adversaries")
     # Core training parameters
@@ -132,9 +132,9 @@ def train(arglist, agent_states, landmark_states):
                 entities_group.extend(env[g].world.entities)
 
                 # 重复训练，运行时可以关掉
-                if done or terminal or episode_step == 0:
-                    obs_n[g] = env[g].reset(copy.deepcopy(agent_states[g]), copy.deepcopy(landmark_states[g]))
-                    episode_step = 0
+                # if done or terminal or episode_step == 0:
+                #     obs_n[g] = env[g].reset(copy.deepcopy(agent_states[g]), copy.deepcopy(landmark_states[g]))
+                #     episode_step = 0
 
             # for displaying learned policies
             if arglist.display:
@@ -143,14 +143,22 @@ def train(arglist, agent_states, landmark_states):
 
 if __name__ == '__main__':
 
-    agent_states = [[[np.array([0.1, 0.1]), np.array([0., 0.])], [np.array([0.3, 0.3]), np.array([0., 0.])], 
-                    [np.array([0.5, 0.5]), np.array([0., 0.])], [np.array([0.7, 0.7]), np.array([0., 0.])]],
-                    [[np.array([0.2, 0.2]), np.array([0., 0.])], [np.array([0.4, 0.4]), np.array([0., 0.])], 
-                    [np.array([0.6, 0.6]), np.array([0., 0.])], [np.array([0.8, 0.8]), np.array([0., 0.])]]]
-    landmark_states = [[[np.array([-0.1, -0.1]), np.array([0., 0.])], [np.array([-0.3, -0.3]), np.array([0., 0.])], 
-                    [np.array([-0.5, -0.5]), np.array([0., 0.])], [np.array([-0.7, -0.7]), np.array([0., 0.])]],
-                    [[np.array([-0.2, -0.2]), np.array([0., 0.])], [np.array([-0.4, -0.4]), np.array([0., 0.])], 
-                    [np.array([-0.6, -0.6]), np.array([0., 0.])], [np.array([-0.8, -0.8]), np.array([0., 0.])]]]
+    agent_states = [[[np.array([-1.8, 1.8]), np.array([0., 0.])], [np.array([-1.6, 1.8]), np.array([0., 0.])], 
+                    [np.array([-1.8, 1.6]), np.array([0., 0.])], [np.array([-1.6, 1.6]), np.array([0., 0.])]],
+                    [[np.array([-1.8, -1.8]), np.array([0., 0.])], [np.array([-1.6, -1.8]), np.array([0., 0.])], 
+                    [np.array([-1.8, -1.6]), np.array([0., 0.])], [np.array([-1.6, -1.6]), np.array([0., 0.])]],
+                    [[np.array([1.8, 1.8]), np.array([0., 0.])], [np.array([1.6, 1.8]), np.array([0., 0.])], 
+                    [np.array([1.8, 1.6]), np.array([0., 0.])], [np.array([1.6, 1.6]), np.array([0., 0.])]],
+                    [[np.array([1.8, -1.8]), np.array([0., 0.])], [np.array([1.6, -1.8]), np.array([0., 0.])], 
+                    [np.array([1.8, -1.6]), np.array([0., 0.])], [np.array([1.6, -1.6]), np.array([0., 0.])]]]
+    landmark_states = [[[np.array([-0.2, 0.2]), np.array([0., 0.])], [np.array([-0.6, 0.6]), np.array([0., 0.])], 
+                    [np.array([-0.2, 0.6]), np.array([0., 0.])], [np.array([-0.6, 0.2]), np.array([0., 0.])]],
+                    [[np.array([-0.2, -0.2]), np.array([0., 0.])], [np.array([-0.6, -0.6]), np.array([0., 0.])], 
+                    [np.array([-0.2, -0.6]), np.array([0., 0.])], [np.array([-0.6, -0.2]), np.array([0., 0.])]],
+                    [[np.array([0.2, 0.2]), np.array([0., 0.])], [np.array([0.6, 0.6]), np.array([0., 0.])], 
+                    [np.array([0.2, 0.6]), np.array([0., 0.])], [np.array([0.6, 0.2]), np.array([0., 0.])]],
+                    [[np.array([0.2, -0.2]), np.array([0., 0.])], [np.array([0.6, -0.6]), np.array([0., 0.])], 
+                    [np.array([0.2, -0.6]), np.array([0., 0.])], [np.array([0.6, -0.2]), np.array([0., 0.])]]]
 
     arglist = parse_args()
     train(arglist, agent_states, landmark_states)

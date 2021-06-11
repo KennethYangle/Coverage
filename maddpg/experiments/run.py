@@ -11,10 +11,14 @@ import maddpg.common.tf_util as U
 from maddpg.trainer.maddpg import MADDPGAgentTrainer
 import tensorflow.contrib.layers as layers
 
-agent_states = [[np.array([0.1, 0.1]), np.array([0., 0.])], [np.array([0.3, 0.3]), np.array([0., 0.])], 
-                [np.array([0.5, 0.5]), np.array([0., 0.])], [np.array([0.7, 0.7]), np.array([0., 0.])]]
-landmark_states = [[np.array([-0.1, -0.1]), np.array([0., 0.])], [np.array([-0.3, -0.3]), np.array([0., 0.])], 
-                   [np.array([-0.5, -0.5]), np.array([0., 0.])], [np.array([-0.7, -0.7]), np.array([0., 0.])]]
+agent_states = [[[np.array([0.1, 0.1]), np.array([0., 0.])], [np.array([0.3, 0.3]), np.array([0., 0.])], 
+                [np.array([0.5, 0.5]), np.array([0., 0.])], [np.array([0.7, 0.7]), np.array([0., 0.])]],
+                [[np.array([0.2, 0.2]), np.array([0., 0.])], [np.array([0.4, 0.4]), np.array([0., 0.])], 
+                [np.array([0.6, 0.6]), np.array([0., 0.])], [np.array([0.8, 0.8]), np.array([0., 0.])]]]
+landmark_states = [[[np.array([-0.1, -0.1]), np.array([0., 0.])], [np.array([-0.3, -0.3]), np.array([0., 0.])], 
+                   [np.array([-0.5, -0.5]), np.array([0., 0.])], [np.array([-0.7, -0.7]), np.array([0., 0.])]],
+                   [[np.array([-0.2, -0.2]), np.array([0., 0.])], [np.array([-0.4, -0.4]), np.array([0., 0.])], 
+                   [np.array([-0.6, -0.6]), np.array([0., 0.])], [np.array([-0.8, -0.8]), np.array([0., 0.])]]]
 
 def parse_args():
     parser = argparse.ArgumentParser("Reinforcement Learning experiments for multiagent environments")
@@ -44,113 +48,9 @@ def parse_args():
     parser.add_argument("--plots-dir", type=str, default="./learning_curves/", help="directory where plot data is saved")
     return parser.parse_args()
 
-def mlp_model(input, num_outputs, scope, reuse=False, num_units=128, rnn_cell=None):
-    # This model takes as input an observation and returns values of all actions
-    with tf.variable_scope(scope, reuse=reuse):
-        out = input
-        out = layers.fully_connected(out, num_outputs=num_units, activation_fn=tf.nn.relu)
-        out = layers.fully_connected(out, num_outputs=num_units, activation_fn=tf.nn.relu)
-        out = layers.fully_connected(out, num_outputs=num_outputs, activation_fn=None)
-        return out
-
-def make_env(scenario_name, arglist, benchmark=False):
-    from multiagent.environment import MultiAgentEnv
-    import multiagent.scenarios as scenarios
-
-    # load scenario from script
-    scenario = scenarios.load(scenario_name + ".py").Scenario()
-    # create world
-    world = scenario.make_world(copy.deepcopy(agent_states), copy.deepcopy(landmark_states))
-    # create multiagent environment
-    if benchmark:
-        env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation, scenario.benchmark_data)
-    else:
-        env = MultiAgentEnv(world, scenario.reset_world, scenario.reward, scenario.observation) # shared_viewer=False 各自第一视角
-    return env
-
-def get_trainers(env, num_adversaries, obs_shape_n, arglist):
-    trainers = []
-    model = mlp_model
-    trainer = MADDPGAgentTrainer
-    for i in range(num_adversaries):
-        trainers.append(trainer(
-            "agent_%d" % i, model, obs_shape_n, env.action_space, i, arglist,
-            local_q_func=(arglist.adv_policy=='ddpg')))
-    for i in range(num_adversaries, env.n):
-        trainers.append(trainer(
-            "agent_%d" % i, model, obs_shape_n, env.action_space, i, arglist,
-            local_q_func=(arglist.good_policy=='ddpg')))
-    return trainers
-
-
-def train(arglist):
-    with U.make_session(8):
-        # Create environment
-        env = make_env(arglist.scenario, arglist, arglist.benchmark)
-        # Create agent trainers
-        obs_shape_n = [env.observation_space[i].shape for i in range(env.n)]
-        num_adversaries = min(env.n, arglist.num_adversaries)
-        trainers = get_trainers(env, num_adversaries, obs_shape_n, arglist)
-        print('Using good policy {} and adv policy {}'.format(arglist.good_policy, arglist.adv_policy))
-
-        # Initialize
-        U.initialize()
-
-        # Load previous results, if necessary
-        if arglist.load_dir == "":
-            arglist.load_dir = arglist.save_dir
-        if arglist.display or arglist.restore or arglist.benchmark:
-            print('Loading previous state...')
-            U.load_state(arglist.load_dir)
-        
-        group_num = 2
-        episode_rewards = list()
-        agent_rewards = list()
-        agent_info = list()
-        obs_n = env.reset(copy.deepcopy(agent_states), copy.deepcopy(landmark_states))
-        episode_step = 0
-
-        for g in range(group_num):
-            episode_rewards.append([0.0])  # sum of rewards for all agents
-            agent_rewards.append([[0.0] for _ in range(env.n)])  # individual agent reward
-            agent_info.append([[[]]])  # placeholder for benchmarking info
-
-        print('Starting iterations...')
-        while True:
-            episode_step += 1
-            for g in range(group_num):
-                # get action
-                action_n = [agent.action(obs) for agent, obs in zip(trainers,obs_n)]
-                print("action_n: {}".format(action_n))
-                # environment step
-                new_obs_n, rew_n, done_n, info_n = env.step(action_n)
-                done = all(done_n)
-                terminal = (episode_step >= arglist.max_episode_len)
-                print(episode_step)
-                # collect experience
-                for i, agent in enumerate(trainers):
-                    agent.experience(obs_n[i], action_n[i], rew_n[i], new_obs_n[i], done_n[i], terminal)
-                obs_n = new_obs_n
-
-                for i, rew in enumerate(rew_n):
-                    episode_rewards[g][-1] += rew
-                    agent_rewards[g][i][-1] += rew
-
-                # 重复训练，运行时可以关掉
-                if done or terminal:
-                    obs_n = env.reset(copy.deepcopy(agent_states), copy.deepcopy(landmark_states))
-                    episode_step = 0
-                    episode_rewards[g].append(0)
-                    for a in agent_rewards[g]:
-                        a.append(0)
-                    agent_info[g].append([[]])
-
-            # for displaying learned policies
-            if arglist.display:
-                time.sleep(0.1)
-                env.render(env.world.entities)
-                continue
-
 if __name__ == '__main__':
+    group_dim = 2
+    from run_group import train
     arglist = parse_args()
-    train(arglist)
+    for g in range(group_dim):
+        train(arglist, agent_states[g], landmark_states[g])
